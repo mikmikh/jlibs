@@ -1,0 +1,20 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  /* -webkit-user-select: none; */
+  /* user-select: none; */
+}
+
+.network {
+  min-width: 400px;
+  height: 400px;
+  border: 1px solid lightgray;
+}
