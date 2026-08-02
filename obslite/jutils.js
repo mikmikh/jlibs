@@ -1,4 +1,3 @@
-
 export function jdeepCopy(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -10,7 +9,8 @@ export function jupdateState(state, newState) {
       if (
         Array.isArray(newVal) ||
         newVal === null ||
-        typeof newVal !== "object"
+        typeof newVal !== "object" ||
+        newVal.constructor.name !== "Object" // NOTE: add to lib
       ) {
         res[key] = newVal;
       } else {
@@ -18,9 +18,11 @@ export function jupdateState(state, newState) {
       }
       return res;
     },
-    { ...state }
+    { ...state },
   );
 }
 export function jupdateByIdx(idx, newVal, arr) {
   return arr.map((oldVal, i) => (i === idx ? newVal : oldVal));
 }
+
+export const idFn = (x) => x;

@@ -264,6 +264,32 @@ const op2backwardFn = {
       });
     },
   },
+  max: {
+    forward: (node) => {
+      // c=max(a,b)
+      const [a, b] = node._prev;
+      node.data = Math.max(a.data, b.data);
+    },
+    backward: (ograd, node) => {
+      // dL/da=dL/dc*(a>=b), dL/db=dL/dc*(a<b)
+      const [a, b] = node._prev;
+      a._grad += ograd * (a.data >= b.data ? 1 : 0);
+      b._grad += ograd * (a.data < b.data ? 1 : 0);
+    },
+  },
+  min: {
+    forward: (node) => {
+      // c=min(a,b)
+      const [a, b] = node._prev;
+      node.data = Math.min(a.data, b.data);
+    },
+    backward: (ograd, node) => {
+      // dL/da=dL/dc*(a<=b), dL/db=dL/dc*(a>b)
+      const [a, b] = node._prev;
+      a._grad += ograd * (a.data <= b.data ? 1 : 0);
+      b._grad += ograd * (a.data > b.data ? 1 : 0);
+    },
+  },
 };
 function JSoftmax(logits) {
   // pi=e^zi/sum(e^zj)

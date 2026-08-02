@@ -166,14 +166,18 @@ export class JSyntax {
     };
     const network = new vis.Network(containerEl, data, options);
   }
-  renderNetworkAst(ast, networkEl) {
+  renderNetworkAst(
+    ast,
+    networkEl,
+    formatFn = (node) => node.item?.repr(false) ?? node.token?.lex,
+  ) {
     const nodesArr = [];
     const edgesArr = [];
     let nodeIdx = 1;
     function walkNode(node, parentIdx = -1) {
       const n = {
         id: nodeIdx++,
-        label: node.item?.repr(false) ?? node.token?.lex,
+        label: formatFn(node),
       };
       nodesArr.push(n);
       const e = { from: parentIdx, to: n.id, width: 1, arrows: "to" };
@@ -256,13 +260,32 @@ export class JLexer {
       if (char === '"' || char === "'") {
         return this._readString();
       }
-      if (["+", "-", "*", "/", "=", ";", "(", ")", "{", "}"].includes(char)) {
+      if (
+        ["+", "-", "*", "/", "=", ";", "^", "(", ")", "{", "}"].includes(char)
+      ) {
         const line = this.line;
         const column = this.column;
         this._advance();
         const token = {
           type: ["(", ")", "{", "}"].includes(char) ? "BRACES" : "OPERATOR",
           value: char,
+          line,
+          column,
+        };
+        return token;
+      }
+      if (["<", ">"].includes(char)) {
+        const line = this.line;
+        const column = this.column;
+        this._advance();
+        let value = char;
+        if (this._peek() === "=") {
+          value += this._peek();
+          this._advance();
+        }
+        const token = {
+          type: "COMP",
+          value,
           line,
           column,
         };
@@ -1220,26 +1243,26 @@ export class ScopeV2 {
     return this._frameStack.at(-1);
   }
   createFrame(id, meta = {}) {
-    console.log("ScopeV2::pushFrame(id, meta)", id,meta);
+    console.log("ScopeV2::pushFrame(id, meta)", id, meta);
     const frame = { id, meta, nextId: this._currentFrame()?.id, data: {} };
     this._frameStack.push(frame);
     this._id2frame[id] = frame;
-    console.log('_frameStack', this._frameStack);
+    console.log("_frameStack", this._frameStack);
   }
   pushExisting(id) {
     console.log("ScopeV2::pushExisting(id)", id);
     this._frameStack.push(this._id2frame[id]);
-    console.log('_frameStack', this._frameStack);
+    console.log("_frameStack", this._frameStack);
   }
   popFrame() {
     console.log("ScopeV2::popFrame");
     this._frameStack.pop();
-    console.log('_frameStack', this._frameStack);
+    console.log("_frameStack", this._frameStack);
   }
   setFrame(id) {
-    console.log("ScopeV2::setFrame(id)",id);
+    console.log("ScopeV2::setFrame(id)", id);
     this._frameStack = [this._id2frame[id]];
-    console.log('_frameStack', this._frameStack);
+    console.log("_frameStack", this._frameStack);
   }
   setSymbol(name, value) {
     console.log("ScopeV2::setSymbol(name, value)", name, value);
