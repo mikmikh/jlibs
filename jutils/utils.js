@@ -111,8 +111,6 @@ export function swapV(lhs) {
   return [lhs[1], lhs[0]];
 }
 
-
-
 // =========== MAT ===========
 
 //          top
@@ -151,7 +149,7 @@ export function mulMatMat(a, b) {
   }
   //   const [rowsRes, colsC] = [rowsA, colsB];
   const res = [...new Array(rowsA)].map((_, r) =>
-    [...new Array(colsB)].map(() => 0)
+    [...new Array(colsB)].map(() => 0),
   );
   for (let r = 0; r < rowsA; r++) {
     for (let c = 0; c < colsB; c++) {
@@ -185,7 +183,7 @@ export function createProjectionMat(
   aspect,
   fov = Math.PI / 2,
   znear = 0.1,
-  zfar = 10
+  zfar = 10,
 ) {
   // [a*F*x/z, F*y/z, z*q-zn*q]
   const F = 1 / Math.tan(fov / 2);
@@ -234,7 +232,7 @@ export function createRotationZMat(angle) {
   const sin = Math.sin(angle);
   const res = [
     [cos, -sin, 0, 0],
-    [sin, cos, 0,0 ],
+    [sin, cos, 0, 0],
     [0, 0, 1, 0],
     [0, 0, 0, 1],
   ];
@@ -270,7 +268,7 @@ export function createViewMat(pos, dir, worldUp) {
     [0, 0, 1, -pos[2]],
     [0, 0, 0, 1],
   ];
-  const res = mulMatMat(rotateMat,translateMat);
+  const res = mulMatMat(rotateMat, translateMat);
   return res;
 }
 export function tri2normal(tri) {
@@ -290,7 +288,7 @@ export function intersectLinePlane(
   linePoint0,
   linePoint1,
   planePoint,
-  planeNormal
+  planeNormal,
 ) {
   const dist0 = distToPlane(linePoint0, planePoint, planeNormal);
   const dist1 = distToPlane(linePoint1, planePoint, planeNormal);
@@ -307,7 +305,7 @@ export function intersectLinePlane(
 export function createFrustrumPlanes(znear, zfar) {
   return [
     [
-      [0, 0, znear/(zfar-znear)],
+      [0, 0, znear / (zfar - znear)],
       [0, 0, 1],
     ],
     [
@@ -331,4 +329,77 @@ export function createFrustrumPlanes(znear, zfar) {
       [0, 1, 0],
     ],
   ];
+}
+
+export function jlerp(lhs, rhs, t) {
+  return lhs + (rhs - lhs) * t;
+}
+export function projectCoef(lpos, ldir, rpos) {
+  const dir = subV(rpos, lpos);
+  const t = dotV(ldir, dir);
+  return t;
+}
+
+export function matMulS(mat, s) {
+  return mat.map((row) => row.map((x) => x * s));
+}
+export function matT(mat) {
+  const [rows, cols] = [mat.length, mat[0].length];
+  const res = [...new Array(cols)].map(() => [...new Array(rows)].map(() => 0));
+  mat.forEach((row, ri) => {
+    row.forEach((x, ci) => {
+      res[ci][ri] = x;
+    });
+  });
+  return res;
+}
+export function matMinor(mat, r, c) {
+  const res = mat.map((row) => [...row]);
+  res.splice(r, 1);
+  res.forEach((row) => row.splice(c, 1));
+  return res;
+}
+export function matDet(mat) {
+  const [rows, cols] = [mat.length, mat[0].length];
+  if (rows !== cols) {
+    throw new Error(`matDet mat is not square: ${[rows, cols]}`);
+  }
+  if (rows === 1) {
+    return mat[0][0];
+  }
+  if (rows === 2) {
+    return mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
+  }
+  const minorMats = mat[0].map((_, ci) => matMinor(mat, 0, ci));
+  const minors = minorMats.map((minorMat) => matDet(minorMat));
+  const cofactors = mat[0].map(
+    (_, ci) => (ci % 2 === 0 ? 1 : -1) * mat[0][ci] * minors[ci],
+  );
+  const res = cofactors.reduce((s, x) => s + x);
+  return res;
+}
+export function matInv(mat) {
+  const det = matDet(mat);
+  console.log("det", det);
+  if (Math.abs(det) < 1e-9) {
+    return null;
+  }
+
+  const minorMats = mat.map((row, ri) =>
+    row.map((x, ci) => matMinor(mat, ri, ci)),
+  );
+  console.log("minorMats", jdeepCopy(minorMats));
+  const minors = minorMats.map((row, ri) =>
+    row.map((minorMat) => matDet(minorMat)),
+  );
+  console.log("minors", jdeepCopy(minors));
+  const cofactorMat = minors.map((row, ri) =>
+    row.map((x, ci) => ((ri + ci) % 2 === 0 ? 1 : -1) * x),
+  );
+  console.log("cofactorMat", jdeepCopy(cofactorMat));
+  const cofactorMatT = matT(cofactorMat);
+  console.log("cofactorMatT", jdeepCopy(cofactorMatT));
+
+  const res = matMulS(cofactorMatT, 1 / det);
+  return res;
 }

@@ -1,4 +1,4 @@
-import * as jutils from './utils.js';
+import * as jutils from "./utils.js";
 
 // =========================== Seeded Random ==============================
 export class JRngMulberry32 {
@@ -14,6 +14,23 @@ export class JRngMulberry32 {
 
     return (z >>> 0) / 4294967296;
   }
+}
+
+export function cyrb53(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed,
+    h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 =
+    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 =
+    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
 export function randInt(min, max, rng = Math) {
@@ -231,19 +248,19 @@ export class JSimplexNoise {
 
     return total / maxValue;
   }
-  noise3dFractal(pos, octaves=4, persistance=0.5, scale=0.01) {
+  noise3dFractal(pos, octaves = 4, persistance = 0.5, scale = 0.01) {
     let total = 0;
     let amplitude = 1;
     let maxValue = 0;
     for (let i = 0; i < octaves; i++) {
-      const spos = jutils.mulV(pos, [scale,scale,scale]);
+      const spos = jutils.mulV(pos, [scale, scale, scale]);
       total += this.noise3d(spos) * amplitude;
       maxValue += amplitude;
       amplitude *= persistance;
       scale *= 2;
     }
 
-    return total/maxValue;
+    return total / maxValue;
   }
 }
 
@@ -259,90 +276,99 @@ function _addEvery(init = [[]], vals = [-1, 0, 1]) {
 }
 // =========================== / Simplex Noise ==============================
 
-
 // =========================== Poisson-Disc Sampling ==============================
-export function jcreatePDSPoints(approxCount=10,rng=Math,maxAttempts=16) {
-    const msize = [1,1];
-    const factor = 2/Math.sqrt(3);
-    const minDistance = 1/Math.sqrt(approxCount)/factor;
-    return _createPoissonDiscSampling(msize,minDistance,maxAttempts, rng);
+export function jcreatePDSPoints(
+  approxCount = 10,
+  rng = Math,
+  maxAttempts = 16,
+) {
+  const msize = [1, 1];
+  const factor = 2 / Math.sqrt(3);
+  const minDistance = 1 / Math.sqrt(approxCount) / factor;
+  return _createPoissonDiscSampling(msize, minDistance, maxAttempts, rng);
 }
 
-
-function _createPoissonDiscSampling(msize,minDistance,maxAttempts=8,rng=Math) {
-    const fCellSize = minDistance/Math.sqrt(2);
-    const vGridSize = msize.map((v) => Math.ceil(v/fCellSize)+1);
-    const grid = [...new Array(vGridSize[0])].map(() => [...new Array(vGridSize[1])].map(() => null));
-    const addToGridFn = (point) => {
-        const gpos = point.map(v => Math.floor(v/fCellSize));
-        if (jutils.checkInside(gpos, [0,0], vGridSize)) {
-            grid[gpos[0]][gpos[1]] = point; // maybe push(point)
-        }
-    };
-    const generateRandomPointAround = (point) => {
-        const radius= randFloat(minDistance, minDistance*2,rng);
-        const angle = randFloat(0,Math.PI*2,rng);
-        const res = [point[0]+radius*Math.cos(angle), point[1] + radius*Math.sin(angle)];
-        return res;
+function _createPoissonDiscSampling(
+  msize,
+  minDistance,
+  maxAttempts = 8,
+  rng = Math,
+) {
+  const fCellSize = minDistance / Math.sqrt(2);
+  const vGridSize = msize.map((v) => Math.ceil(v / fCellSize) + 1);
+  const grid = [...new Array(vGridSize[0])].map(() =>
+    [...new Array(vGridSize[1])].map(() => null),
+  );
+  const addToGridFn = (point) => {
+    const gpos = point.map((v) => Math.floor(v / fCellSize));
+    if (jutils.checkInside(gpos, [0, 0], vGridSize)) {
+      grid[gpos[0]][gpos[1]] = point; // maybe push(point)
     }
-    const checkValid = (point) => {
-        const gpos = point.map((v) => Math.floor(v/fCellSize));
-        if (!jutils.checkInside(gpos, [0,0], vGridSize)) {
-               return false;
-            }
-        for (let dr=-1;dr<=1;dr++) {
-            for (let dc =-1; dc <=1; dc++ ) {
-                const npos = [gpos[0]+dr, gpos[1]+dc];
-                // console.log('npos',npos);
-                if (!jutils.checkInside(npos, [0,0], vGridSize)) {
-                    continue;
-                }
-                const npoint = grid[npos[0]][npos[1]];
-                if (!npoint) {
-                    continue;
-                }
-                const dir = jutils.subV(npoint, point);
-                const dist = jutils.lenV(dir);
-                // console.log('dist',dist);
-                if (dist < minDistance) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    const points = [];
-    const active = [];
-
-    const startPoint = [
-        randFloat(0, msize[0], rng),
-        randFloat(0, msize[1], rng),
+  };
+  const generateRandomPointAround = (point) => {
+    const radius = randFloat(minDistance, minDistance * 2, rng);
+    const angle = randFloat(0, Math.PI * 2, rng);
+    const res = [
+      point[0] + radius * Math.cos(angle),
+      point[1] + radius * Math.sin(angle),
     ];
-    points.push(startPoint);
-    active.push(startPoint);
-    addToGridFn(startPoint);
-
-    while(active.length > 0) {
-        const ridx = randInt(0,active.length, rng);
-        const point = active[ridx];
-        let found = false;
-        for (let ai = 0; ai < maxAttempts; ai++) {
-            const npoint = generateRandomPointAround(point);
-            if (!checkValid(npoint)) {
-                continue;
-            }
-            points.push(npoint);
-            active.push(npoint);
-            addToGridFn(npoint);
-            found=true;
-            break;
-        }
-
-        if (!found) {
-            active.splice(ridx,1);
-        }
+    return res;
+  };
+  const checkValid = (point) => {
+    const gpos = point.map((v) => Math.floor(v / fCellSize));
+    if (!jutils.checkInside(gpos, [0, 0], vGridSize)) {
+      return false;
     }
-    return points;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const npos = [gpos[0] + dr, gpos[1] + dc];
+        // console.log('npos',npos);
+        if (!jutils.checkInside(npos, [0, 0], vGridSize)) {
+          continue;
+        }
+        const npoint = grid[npos[0]][npos[1]];
+        if (!npoint) {
+          continue;
+        }
+        const dir = jutils.subV(npoint, point);
+        const dist = jutils.lenV(dir);
+        // console.log('dist',dist);
+        if (dist < minDistance) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const points = [];
+  const active = [];
+
+  const startPoint = [randFloat(0, msize[0], rng), randFloat(0, msize[1], rng)];
+  points.push(startPoint);
+  active.push(startPoint);
+  addToGridFn(startPoint);
+
+  while (active.length > 0) {
+    const ridx = randInt(0, active.length, rng);
+    const point = active[ridx];
+    let found = false;
+    for (let ai = 0; ai < maxAttempts; ai++) {
+      const npoint = generateRandomPointAround(point);
+      if (!checkValid(npoint)) {
+        continue;
+      }
+      points.push(npoint);
+      active.push(npoint);
+      addToGridFn(npoint);
+      found = true;
+      break;
+    }
+
+    if (!found) {
+      active.splice(ridx, 1);
+    }
+  }
+  return points;
 }
 // =========================== / Poisson-Disc Sampling ==============================
